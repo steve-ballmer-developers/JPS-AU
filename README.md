@@ -3,7 +3,7 @@
 This is intended to be used alongside BugsPy.
 
 **Features:**
-- JPS API Wrapper.
+- JPS Client.
 - FTP Support
 - FLAC/MP3 Support.
 - BugsPy .log Support.
