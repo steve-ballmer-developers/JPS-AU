@@ -1,0 +1,24 @@
+{
+    "credentials": {
+      "username": "jps_username",
+      "password": "jps_password"
+    },
+    "local_prefs": {
+      "log_directory": "D:/Bugs/BugsPy-master/logs",
+      "cover_name": "cover.jpg",
+      "add_to_watch_folder": false,
+      "add_to_downloads_folder": false,
+      "local_watch_folder": "C:/watch",
+      "local_downloads_folder": "C:/downloads"
+    },
+    "ftp_prefs": {
+      "enable_ftp": false,
+      "add_to_watch_folder": false,
+      "add_to_downloads_folder": false,
+      "ftp_server": "server_url",
+      "ftp_username": "server_username",
+      "ftp_password": "server_password",
+      "ftp_watch_folder": "/downloads/watch/transmission",
+      "ftp_downloads_folder": "/downloads"
+    }
+}
