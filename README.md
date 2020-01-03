@@ -21,6 +21,7 @@ python bugs.py {command_name} {ID/URL}
 Command  | Description  | Example
 ------------- | ------------- | -------------
 -d, --debug | Provides additional information on upload for debugging purposes | `python autoupload.py -d`
+-f, --freeleech | Enables freeleech (VIP+ Userclass Requirement) | `python autoupload.py -f -dir "Z:\Music\Korean\Ego\Ego - E [2020.01.02] [EP] [WEB-MP3]"`
 -dir, --directory | Appoint directory used for torrent creation | `python autoupload.py -dir "Z:\Music\Korean\Ego\Ego - E [2020.01.02] [EP] [WEB-MP3]"`
 -dry, --dryrun | Carries out all actions other than the upload itself.| `python autoupload.py -dir "Z:\Music\Korean\Ego\Ego - E [2020.01.02] [EP] [WEB-MP3]" -dry`
 
@@ -40,10 +41,10 @@ Password  | JPopSuki Password | Password
 Config  | Description  | Example
 ------------- | ------------- | -------------
 log_directory | directory containing BugsPy log files  | `Z:/Bugs/Logs`
-cover_name | name of cover with extension | `cover.jpg` 
+cover_name | name of cover with extension | `cover.jpg`
 add_to_watch_folder | moves .torrent file to local watch folder | `true/false`  
 add_to_downloads_folder | moves torrent data to local downloads folder | `true/false`  
-local_watch_folder | directory of local watch folder | `Z:/watch/Transmission` 
+local_watch_folder | directory of local watch folder | `Z:/watch/Transmission`
 local_downloads_folder | directory of local downloads folder | `Z:/downloads`  
 
 
@@ -57,8 +58,8 @@ add_to_downloads_folder | transfer torrent data to downloads folder on FTP serve
 ftp_server | url of ftp server | haze.seedhost.eu
 ftp_username | username of ftp account | slyy
 ftp_password | password of ftp account | password
-ftp_watch_folder | directory of ftp watch folder | `/downloads/watch/transmission` 
-ftp_downloads_folder | directory of ftp downloads folder | `/downloads` 
+ftp_watch_folder | directory of ftp watch folder | `/downloads/watch/transmission`
+ftp_downloads_folder | directory of ftp downloads folder | `/downloads`
 
 
 ## Disclaimer

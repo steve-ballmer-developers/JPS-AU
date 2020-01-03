@@ -36,6 +36,7 @@ def asciiart ():
 def getargs():
     parser = argparse.ArgumentParser()
     parser.add_argument('-dir', '--directory', help='Initiate upload on directory', nargs='?', required=True)
+    parser.add_argument("-f", "--freeleech", help="Enables freeleech", action="store_true")
     parser.add_argument('-d', '--debug', help='Enable debug mode', action='store_true')
     parser.add_argument("-dry", "--dryrun", help="Dryrun will carry out all actions other than the actual upload to JPS.", action="store_true")
 
@@ -346,6 +347,10 @@ def gatherdata(directory):
     releasedata['release_desc'] = release_description
     releasedata['tags'] = unique_genre
 
+    #Enable freeleech if arg is passed
+    if freeleech:
+        releasedata['freeleech'] = "true" 
+
     return releasedata
 
 # Simple function to split a string up into characters
@@ -483,7 +488,7 @@ if __name__ == "__main__":
     args = getargs()
 
     # TODO consider calling args[] directly, we will then not need this line
-    dryrun = directory = debug = None
+    dryrun = freeleech = directory = debug = None
 
     directory = args.directory
 
@@ -492,6 +497,9 @@ if __name__ == "__main__":
 
     if args.debug:
         debug = True
+
+    if args.freeleech:
+        freeleech = True
 
     # Load login credentials from JSON and use them to create a login session.
     with open(f'json_data/config.json') as f:
