@@ -309,9 +309,10 @@ def gatherdata(directory):
 
 
     # Split additional genre's at comma and append to existing genre tags
-    split_tags = additional_tags.split(",")
-    for s in split_tags:
-        list_genre.append(s)
+    if additional_tags != None:
+        split_tags = additional_tags.split(",")
+        for s in split_tags:
+            list_genre.append(s)
 
     # Translate genre's using dict and append to translated_genre
     for g in set(list_genre):
