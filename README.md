@@ -22,6 +22,7 @@ Command  | Description  | Example
 ------------- | ------------- | -------------
 -d, --debug | Provides additional information on upload for debugging purposes | `python autoupload.py -d`
 -f, --freeleech | Enables freeleech (VIP+ Userclass Requirement) | `python autoupload.py -f -dir "Z:\Music\Korean\Ego\Ego - E [2020.01.02] [EP] [WEB-MP3]"`
+-t, --tags | Add additional tags to upload, separated with comma | `python autoupload.py -t "korean, female.vocalist" -dir "Z:\Music\Korean\Ego\Ego - E [2020.01.02] [EP] [WEB-MP3]"`
 -dir, --directory | Appoint directory used for torrent creation | `python autoupload.py -dir "Z:\Music\Korean\Ego\Ego - E [2020.01.02] [EP] [WEB-MP3]"`
 -dry, --dryrun | Carries out all actions other than the upload itself.| `python autoupload.py -dir "Z:\Music\Korean\Ego\Ego - E [2020.01.02] [EP] [WEB-MP3]" -dry`
 

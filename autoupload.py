@@ -37,6 +37,7 @@ def getargs():
     parser = argparse.ArgumentParser()
     parser.add_argument('-dir', '--directory', help='Initiate upload on directory', nargs='?', required=True)
     parser.add_argument("-f", "--freeleech", help="Enables freeleech", action="store_true")
+    parser.add_argument("-t", "--tags", help="Add additional tags to the upload", nargs='?')
     parser.add_argument('-d', '--debug', help='Enable debug mode', action='store_true')
     parser.add_argument("-dry", "--dryrun", help="Dryrun will carry out all actions other than the actual upload to JPS.", action="store_true")
 
@@ -301,15 +302,23 @@ def gatherdata(directory):
         else:
             media = 'WEB'
 
-    # Translate genre's using our dict as jps uses specific tagging.
+    # Load Dict.json for translations
     file = "json_data/dictionary.json"
     with open(file, encoding='utf-8', errors='ignore') as f:
         dictionary = json.load(f, strict=False)
 
+
+    # Split additional genre's at comma and append to existing genre tags
+    split_tags = additional_tags.split(",")
+    for s in split_tags:
+        list_genre.append(s)
+
+    # Translate genre's using dict and append to translated_genre
     for g in set(list_genre):
         translation = translate(g, "genres")[0]
         translated_genre.append(translation)
 
+    # Translate artist's using dict and append to translated_album_artists
     for a in set(list_album_artists):
         translated_artist_name = translate(string=tags['ALBUMARTIST'][0], category="artist")
         translated_album_artists.append(translated_artist_name[1])
@@ -349,7 +358,7 @@ def gatherdata(directory):
 
     #Enable freeleech if arg is passed
     if freeleech:
-        releasedata['freeleech'] = "true" 
+        releasedata['freeleech'] = "true"
 
     return releasedata
 
@@ -488,9 +497,10 @@ if __name__ == "__main__":
     args = getargs()
 
     # TODO consider calling args[] directly, we will then not need this line
-    dryrun = freeleech = directory = debug = None
+    dryrun = freeleech = tags = directory = debug = None
 
     directory = args.directory
+    additional_tags = args.tags
 
     if args.dryrun:
         dryrun = True
