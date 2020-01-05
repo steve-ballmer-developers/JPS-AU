@@ -61,8 +61,18 @@ def createtorrent(authkey, directory, filename):
     t.private = True
     t.generate()
     filename = f"{filename}.torrent"
-    t.write(filename)
-    print(f"Torrent has been created for {filename}")
+    try:
+        t.write(filename)
+        print("_" * 100)
+        print("Torrent creation:\n")
+        print(f"{filename} has been created.")
+    except:
+        print("_" * 100)
+        print("Torrent creation:\n")
+        os.remove(filename)
+        print(f"{filename} already exists, existing torrent will be replaced.")
+        t.write(filename)
+        print(f"{filename} has been created.")
 
     return filename
 
@@ -72,19 +82,30 @@ def readflac(filename):
 
     # Create dict containing all meta fields we'll be using.
     tags={
-        "ALBUM": read['album'],
-        "ALBUMARTIST": read['albumartist'],
-        "ARTIST": read['artist'],
-        "DATE": read['date'][0],
-        "GENRE": read['genre'],
-        "TITLE": read['title'],
-        "COMMENT": read['comment']}
+        "ALBUM": read.get('album'),
+        "ALBUMARTIST": read.get('albumartist'),
+        "ARTIST": read.get('artist'),
+        "DATE": read.get('date')[0],
+        "GENRE": read.get('genre'),
+        "TITLE": read.get('title'),
+        "COMMENT": read.get('comment'),
+        "TRACKNUMBER": read.get('tracknumber')[0].zfill(2),
+        "DISCNUMBER": read.get('discnumber')}
 
     # Not further looked into this but some FLACs hold a grouping key of contentgroup instead of grouping.
-    try:
-        tags['GROUPING'] = read['grouping']
-    except KeyError:
-        tags['GROUPING'] = read['contentgroup']
+    tags['GROUPING'] = read.get('grouping')
+    ## If grouping returns None we check contentgroup.
+    # If it still returns none we will ignore it and handle on final checks
+    if tags['GROUPING'] == None:
+        tags['GROUPING'] = read.get('contentgroup')
+
+
+    required_tags = ['ALBUM', 'ALBUMARTIST','DATE','TRACKNUMBER']
+    for k,v in tags.items():
+        if v == None:
+            if k in required_tags:
+                print(f"{k} has returned {v}, this is a required tag")
+                sys.exit()
 
     return tags
 
@@ -94,20 +115,56 @@ def readmp3(filename):
 
     # Create dict containing all meta fields we'll be using.
     tags={
-        "ALBUM": read['TALB'].text,
-        "ALBUMARTIST": read['TPE2'].text,
-        "ARTIST": read['TPE1'].text,
-        "DATE": str(read['TDRC']),
-        "GENRE": read['TCON'].text,
-        "TITLE": read['TIT2'].text,
-        "COMMENT": read['COMM::eng'].text,
-        "GROUPING": read['TIT1'].text}
+        "ALBUM": read.get('TALB'), # Album Title
+        "ALBUMARTIST": read.get('TPE2'), # Album Artist
+        "ARTIST": read.get('TPE1'), # Track Artist
+        "DATE": str(read.get('TDRC')), # Date YYYYMMDD (Will need to add a try/except for other possible identifiers)
+        "GENRE": read.get('TCON').text, # Genre
+        "TITLE": read.get('TIT2'), # Track Title
+        "COMMENT": read.get('COMM::eng'), # Track Comment
+        "GROUPING": read.get('TIT1'), # Grouping
+        "TRACKNUMBER": re.sub(r"\/.*", "", str(read.get('TRCK'))).zfill(2), # Tracknumber (Format #/Total) Re.sub removes /#
+        "DISCNUMBER": re.sub(r"\/.*", "", str(read.get('TPOS')))} # Discnumber (Format #/Total) Re.sub removes /#
+
+    required_tags = ['ALBUM', 'ALBUMARTIST','DATE','TRACKNUMBER']
+    for k,v in tags.items():
+        if v == None:
+            if k in required_tags:
+                print(f"{k} has returned {v}, this is a required tag")
+                sys.exit()
 
     return tags
+
+# Generates new log file based on directory contents
+def generatelog(track_titles, log_filename, log_directory):
+    # Seperate each tracklist entry in the list with a newline
+    track_titles = '\n'.join([str(x) for x in track_titles])
+
+    # Format tracklist layout
+    log_contents = f"""[size=5][b]Tracklist[/b][/size]\n{track_titles}
+    """
+
+    # If we have chosen to save the tracklist then we write log_contents to a .log file within the log directory specified
+    if cfg['local_prefs']['save_tracklist']:
+        # Write to {album_name}.log
+        with open(f"{log_directory}/{log_filename}.log", "w+") as f:
+            f.write(log_contents)
+            # Reset position to first line and read
+            f.seek(0)
+            log_contents = f.read()
+            f.close()
+
+    # If debug mode is enabled we will print the log contents.
+    if debug:
+        print("_" * 100)
+        print(f"Log Contents/Tracklisting: {log_contents}")
+
+    return log_contents
 
 def readlog(log_name, log_directory):
     with open(f"{log_directory}/{log_name}.log", "r+") as f:
         log_contents = f.read()
+        f.close()
 
     return log_contents
 
@@ -243,14 +300,15 @@ def translate(string, category, result=None, output=None):
     return output
 
 def gatherdata(directory):
-    ## List objects used to compare files.
-    # The reason we do this is because we need to confirm all files contain the same meta before uploading.
+    # Lists for storing some
     list_album_artists = []
     list_track_artists = []
     list_album = []
     list_genre = []
     translated_genre = []
     translated_album_artists = []
+    tracklist_entries = []
+    # Creation of releasedata dict, this will store formatted meta used for the POST.
     releasedata = {}
 
     ## Set no log as default value.
@@ -265,12 +323,34 @@ def gatherdata(directory):
             # Read FLAC file to grab meta
             tags = readflac(file_location)
             flac_present = True
+            # If Discnumber isn't present then we omit it from the tracklist entry
+            if tags['DISCNUMBER'] == None:
+                tracklist_entry = f"[b]{tags['TRACKNUMBER']}[/b]. {tags['TITLE'][0]}"
+            else:
+                tracklist_entry = f"[b]{tags['DISCNUMBER']}-{tags['TRACKNUMBER']}[/b]. {tags['TITLE'][0]}"
+
+            tracklist_entries.append(tracklist_entry)
+
+            if debug:
+                print ("_" * 100)
+                print(f"Tags for {file}:\n{tags}")
+
         if file.endswith(".mp3"):
             # Read MP3 file to grab meta
             tags = readmp3(file_location)
             mp3_present = True
-        if debug:
-            print(f"Tags for {file}:\n{tags}")
+            # If Discnumber isn't present then we omit it from the tracklist entry
+            if tags['DISCNUMBER'] == "None":
+                tracklist_entry = f"[b]{tags['TRACKNUMBER']}[/b]. {tags['TITLE'][0]}"
+            else:
+                tracklist_entry = f"[b]{tags['DISCNUMBER']}-{tags['TRACKNUMBER']}[/b]. {tags['TITLE'][0]}"
+
+            tracklist_entries.append(tracklist_entry)
+
+            if debug:
+                print ("_" * 100)
+                print(f"Tags for {file}:\n{tags}")
+
         # If only one genre in list attempt to split as there's likely more.
         if len(tags['GENRE']) == 1:
             tags['GENRE'] = tags['GENRE'][0].split(";")
@@ -332,17 +412,50 @@ def gatherdata(directory):
 
     ## Acquire contents of our log file to be used for album description
     # Comments store the album id which matches our log names, so we can use the comment tag to find our album descriptions.
-    log_filename = tags['COMMENT'][0]
     log_directory = cfg['local_prefs']['log_directory']
     # Album description taken from log file.
-    album_description = readlog(log_filename, log_directory)
-    # Release description
-    release_description = f"Sourced from [url=https://music.bugs.co.kr/album/{tags['COMMENT'][0]}]Bugs[/url]"
+    if cfg['local_prefs']['generate_tracklist']:
+        log_filename = f"{unique_album_artists} - {tags['ALBUM'][0]}"
+        album_description = generatelog(tracklist_entries, log_filename, log_directory)
+    else:
+        log_filename = tags['COMMENT'][0]
+        album_description = readlog(log_filename, log_directory)
+
+    ## If release description is enabled we apply comments to the bugs album url
+    # Note that this is dependant on the album being sourced from bugs so should be changed per user.
+    if cfg['local_prefs']['enable_release_description']:
+        try:
+            release_description = f"Sourced from [url=https://music.bugs.co.kr/album/{tags['COMMENT'][0]}]Bugs[/url]"
+        # If any exceptions occur we will return to no release description
+        except:
+            release_description = ""
+    # If release description is not enabled we will use no release description
+    else:
+        release_description = ""
 
     ## Assign all our unique values into releasedata{}. We'll use this later down the line for POSTING.
     # POST values can be found by inspecting JPS HTML
     releasedata['submit'] = 'true'
-    releasedata['type'] = translate(tags['GROUPING'][0], "release_types")[0]
+
+    # List of accepted upload types
+    accepted_types = ['Album', 'Single']
+    # If type errors then we ask for user input
+    try:
+        releasedata['type'] = translate(tags['GROUPING'][0], "release_types")[0]
+    except TypeError:
+        releasedata['type'] = input("\n" + "_" * 100 + "\nGrouping is empty or has received an error, please enter manually (Album/Single)\n")
+
+    # If type is still not in accepted_types we ask for user input again and do not break loop until correct
+    if releasedata['type'] not in accepted_types:
+        while True:
+            releasedata['type'] = input("\n" + "_" * 100 + "\nGrouping tag did not return an album type, please enter manually (Album/Single)\n")
+
+            if releasedata['type'] not in accepted_types:
+                continue
+            else:
+                break
+
+
     releasedata['title'] = tags['ALBUM'][0]
     releasedata['artist'] = unique_album_artists
     # If the value of album artist and artist is the same, we don't need to POST original artist.
@@ -357,7 +470,7 @@ def gatherdata(directory):
     releasedata['release_desc'] = release_description
     releasedata['tags'] = unique_genre
 
-    #Enable freeleech if arg is passed
+    # Enable freeleech if arg is passed
     if freeleech:
         releasedata['freeleech'] = "true"
 
@@ -384,9 +497,6 @@ def detectlanguage(string):
     else:
         en = True
 
-    if debug:
-        print(f"Language List: {language_list}")
-
     return en
 
 def uploadtorrent(torrent, cover, releasedata):
@@ -398,9 +508,11 @@ def uploadtorrent(torrent, cover, releasedata):
     # This is a required check as we don't want to enter non-english/romaji characters into the title/artist field.
     en = detectlanguage(releasedata['title'])
     if debug:
-        print(f"{releasedata['title']} language: {en}")
+        print("_" * 100)
+        print("Title/Artist Language:\n")
+        print(f"{releasedata['title']} < English = {en}")
     if en == False:
-        input_english_title = input("\n" + "_" * 62 + "\nKorean/Japanese Detected. Please enter the romaji/english title:\n")
+        input_english_title = input("\n" + "_" * 100 + "\nKorean/Japanese Detected. Please enter the romaji/english title:\n")
         # Create new key called titlejp and assign the old title to it
         releasedata['titlejp'] = releasedata['title']
         # Replace title with the user input.
@@ -408,9 +520,9 @@ def uploadtorrent(torrent, cover, releasedata):
 
     en = detectlanguage(releasedata['artist'])
     if debug:
-        print(f"{releasedata['artist']} language: {en}")
+        print(f"{releasedata['artist']} < English = {en}")
     if en == False:
-        input_english_artist = input("\n" + "_" * 62 + "\nKorean/Japanese Detected. Please enter the romaji/english artist name:\n")
+        input_english_artist = input("\n" + "_" * 100 + "\nKorean/Japanese Detected. Please enter the romaji/english artist name:\n")
         # Create new key called titlejp and assign the old title to it
         # Replace title with the user input.
         releasedata['artist'] = input_english_artist
@@ -423,15 +535,23 @@ def uploadtorrent(torrent, cover, releasedata):
         print('Release Data:\n')
         print(releasedata)
 
-    postDataFiles = {
-        'file_input': open(torrent, 'rb'),
-        'userfile': open(cover, 'rb')
-    }
+    try:
+        postDataFiles = {
+            'file_input': open(torrent, 'rb'),
+            'userfile': open(cover, 'rb')
+        }
+    except FileNotFoundError:
+        print("_" * 100)
+        print('File not found!\nPlease confirm file locations and names. Cover image or .torrent file could not be found')
+        sys.exit()
 
-    JPSres = j.retrieveContent(uploadurl, "post", data, postDataFiles)
+    # If dryrun argument has not ben passed we will POST the results to JPopSuki.
+    if dryrun != True:
+        JPSres = j.retrieveContent(uploadurl, "post", data, postDataFiles)
+        print('\nUpload POSTED')
+
     ## TODO Filter through JPSres.text and create error handling based on responses
     #print(JPSres.text)
-    print('Upload POSTED')
 
 # Function for transferring the contents of the torrent as well as the torrent.
 def ftp_transfer(fileSource, fileDestination, directory, folder_name, watch_folder):
@@ -536,8 +656,7 @@ if __name__ == "__main__":
     torrentfile = createtorrent(authkey, directory, folder_name)
 
     # Upload torrent to JPopSuki
-    if dryrun != True:
-        uploadtorrent(torrentfile, cover_path, releasedata)
+    uploadtorrent(torrentfile, cover_path, releasedata)
 
     # Setting variable for watch/download folders
     ftp_watch_folder = cfg['ftp_prefs']['ftp_watch_folder']

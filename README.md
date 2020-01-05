@@ -29,6 +29,8 @@ Command  | Description  | Example
 ## Config.json  
 
 - It's not recommended to use both local watch/download folders and ftp watch/download folders at the same time as it will result in seeding from 2 locations.
+- If generate_tracklist is set to false the script will try and find BugsPy logs within the selected log folder, this will use the comments tag to find the log. For example if 204815 is within your comments tag, it will search your log folder for 204815.log and use the contents of this log for the album description.
+- Similarly to generate_tracklist, if enable_release_description is 'true' the script will create a url to the Bugs.co.kr album webpage to display the source, this can easily be edited to suit your needs within the gatherdata() function
 
 **credentials:**
 
@@ -42,6 +44,9 @@ Password  | JPopSuki Password | Password
 Config  | Description  | Example
 ------------- | ------------- | -------------
 log_directory | directory containing BugsPy log files  | `Z:/Bugs/Logs`
+generate_tracklist | enable tracklist generation  | `true/false`
+save_tracklist | write tracklist to .log and save in log folder  | `true/false`
+enable_release_description | post comments tag to release description  | `true/false`
 cover_name | name of cover with extension | `cover.jpg`
 add_to_watch_folder | moves .torrent file to local watch folder | `true/false`  
 add_to_downloads_folder | moves torrent data to local downloads folder | `true/false`  
