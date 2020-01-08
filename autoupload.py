@@ -351,16 +351,17 @@ def gatherdata(directory):
                 print ("_" * 100)
                 print(f"Tags for {file}:\n{tags}")
 
-        # If only one genre in list attempt to split as there's likely more.
-        if len(tags['GENRE']) == 1:
-            tags['GENRE'] = tags['GENRE'][0].split(";")
-        for aa in tags['ALBUMARTIST']:
-            list_album_artists.append(aa)
-        for a in tags['ARTIST']:
-            list_track_artists.append(a)
-        list_album.append(tags['ALBUM'][0])
-        for g in tags['GENRE']:
-            list_genre.append(g)
+        if file.endswith(".flac") or file.endswith(".mp3"):
+            # If only one genre in list attempt to split as there's likely more.
+            if len(tags['GENRE']) == 1:
+                tags['GENRE'] = tags['GENRE'][0].split(";")
+            for aa in tags['ALBUMARTIST']:
+                list_album_artists.append(aa)
+            for a in tags['ARTIST']:
+                list_track_artists.append(a)
+            list_album.append(tags['ALBUM'][0])
+            for g in tags['GENRE']:
+                list_genre.append(g)
 
 
         # Check files to make sure there's no multi-format.
