@@ -83,7 +83,7 @@ class MyLoginSession:
         # test login
         res = self.session.get(self.loginTestUrl)
         if res.text.lower().find(self.loginTestString.lower()) < 0:
-            if args.debug:
+            if self.debug:
                 print(res.text)
             raise Exception("could not log into provided site '%s'"
                             " (did not find successful login string)"
