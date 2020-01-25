@@ -122,7 +122,7 @@ def readmp3(filename):
         "ALBUM": read.get('TALB'), # Album Title
         "ALBUMARTIST": read.get('TPE2'), # Album Artist
         "ARTIST": read.get('TPE1'), # Track Artist
-        "DATE": str(read.get('TDRL')), # Date YYYYMMDD (Will need to add a try/except for other possible identifiers)
+        "DATE": str(read.get('TDRC')), # Date YYYYMMDD (Will need to add a try/except for other possible identifiers)
         "GENRE": read.get('TCON').text, # Genre
         "TITLE": read.get('TIT2'), # Track Title
         "COMMENT": read.get('COMM::eng'), # Track Comment
