@@ -54,13 +54,17 @@ def getauthkey():
     return authkey
 
 # Creates torrent file using torf module.
-def createtorrent(authkey, directory, filename):
+def createtorrent(authkey, directory, filename, releasedata):
     t = Torrent(path=directory,
                 trackers=[authkey]) # Torf requires we store authkeys in a list object. This makes it easier to add multiple announce urls.
     # Set torrent to private as standard practice for private trackers
     t.private = True
     t.generate()
-    filename = f"{filename}.torrent"
+    ## Format releasedata to bring a suitable torrent name.
+    # The reason we don't just use the directory name is because of an error in POSTING.
+    # POSTS do not seem to POST hangul/jp characters alongside files.
+    filename = f"{releasedata['artist']} - {releasedata['title']} [{releasedata['media']}-{releasedata['format']}].torrent"
+
     try:
         t.write(filename)
         print("_" * 100)
@@ -118,7 +122,7 @@ def readmp3(filename):
         "ALBUM": read.get('TALB'), # Album Title
         "ALBUMARTIST": read.get('TPE2'), # Album Artist
         "ARTIST": read.get('TPE1'), # Track Artist
-        "DATE": str(read.get('TDRC')), # Date YYYYMMDD (Will need to add a try/except for other possible identifiers)
+        "DATE": str(read.get('TDRL')), # Date YYYYMMDD (Will need to add a try/except for other possible identifiers)
         "GENRE": read.get('TCON').text, # Genre
         "TITLE": read.get('TIT2'), # Track Title
         "COMMENT": read.get('COMM::eng'), # Track Comment
@@ -327,7 +331,7 @@ def gatherdata(directory):
             if tags['DISCNUMBER'] == None:
                 tracklist_entry = f"[b]{tags['TRACKNUMBER']}[/b]. {tags['TITLE'][0]}"
             else:
-                tracklist_entry = f"[b]{tags['DISCNUMBER']}-{tags['TRACKNUMBER']}[/b]. {tags['TITLE'][0]}"
+                tracklist_entry = f"[b]{tags['DISCNUMBER'][0]}-{tags['TRACKNUMBER']}[/b]. {tags['TITLE'][0]}"
 
             tracklist_entries.append(tracklist_entry)
 
@@ -351,17 +355,16 @@ def gatherdata(directory):
                 print ("_" * 100)
                 print(f"Tags for {file}:\n{tags}")
 
-        if file.endswith(".flac") or file.endswith(".mp3"):
-            # If only one genre in list attempt to split as there's likely more.
-            if len(tags['GENRE']) == 1:
-                tags['GENRE'] = tags['GENRE'][0].split(";")
-            for aa in tags['ALBUMARTIST']:
-                list_album_artists.append(aa)
-            for a in tags['ARTIST']:
-                list_track_artists.append(a)
-            list_album.append(tags['ALBUM'][0])
-            for g in tags['GENRE']:
-                list_genre.append(g)
+        # If only one genre in list attempt to split as there's likely more.
+        if len(tags['GENRE']) == 1:
+            tags['GENRE'] = tags['GENRE'][0].split(";")
+        for aa in tags['ALBUMARTIST']:
+            list_album_artists.append(aa)
+        for a in tags['ARTIST']:
+            list_track_artists.append(a)
+        list_album.append(tags['ALBUM'][0])
+        for g in tags['GENRE']:
+            list_genre.append(g)
 
 
         # Check files to make sure there's no multi-format.
@@ -388,7 +391,6 @@ def gatherdata(directory):
     with open(file, encoding='utf-8', errors='ignore') as f:
         dictionary = json.load(f, strict=False)
 
-
     # Split additional genre's at comma and append to existing genre tags
     if additional_tags != None:
         split_tags = additional_tags.split(",")
@@ -402,8 +404,12 @@ def gatherdata(directory):
 
     # Translate artist's using dict and append to translated_album_artists
     for a in set(list_album_artists):
-        translated_artist_name = translate(string=tags['ALBUMARTIST'][0], category="artist")
-        translated_album_artists.append(translated_artist_name[1])
+        if tags['ALBUMARTIST'][0] == 'Various Artists':
+            translated_artist_name = 'V.A.'
+            translated_album_artists.append("V.A.")
+        else:
+            translated_artist_name = translate(string=tags['ALBUMARTIST'][0], category="artist")
+            translated_album_artists.append(translated_artist_name[1])
 
     ## Identify unique values using sets.
     unique_album_artists = ','.join(set(translated_album_artists))
@@ -475,6 +481,29 @@ def gatherdata(directory):
     if freeleech:
         releasedata['freeleech'] = "true"
 
+    ## Language Checks
+    # This is a required check as we don't want to enter non-english/romaji characters into the title/artist field.
+    en = detectlanguage(releasedata['title'])
+    if debug:
+        print("_" * 100)
+        print("Title/Artist Language:\n")
+        print(f"{releasedata['title']} < English = {en}")
+    if en == False:
+        input_english_title = input("\n" + "_" * 100 + "\nKorean/Japanese Detected. Please enter the romaji/english title:\n")
+        # Create new key called titlejp and assign the old title to it
+        releasedata['titlejp'] = releasedata['title']
+        # Replace title with the user input.
+        releasedata['title'] = input_english_title
+
+    en = detectlanguage(releasedata['artist'])
+    if debug:
+        print(f"{releasedata['artist']} < English = {en}")
+    if en == False:
+        input_english_artist = input("\n" + "_" * 100 + "\nKorean/Japanese Detected. Please enter the romaji/english artist name:\n")
+        # Create new key called titlejp and assign the old title to it
+        # Replace title with the user input.
+        releasedata['artist'] = input_english_artist
+
     return releasedata
 
 # Simple function to split a string up into characters
@@ -504,29 +533,6 @@ def uploadtorrent(torrent, cover, releasedata):
 
     # POST url.
     uploadurl = "https://jpopsuki.eu/upload.php"
-
-    ## Language Checks
-    # This is a required check as we don't want to enter non-english/romaji characters into the title/artist field.
-    en = detectlanguage(releasedata['title'])
-    if debug:
-        print("_" * 100)
-        print("Title/Artist Language:\n")
-        print(f"{releasedata['title']} < English = {en}")
-    if en == False:
-        input_english_title = input("\n" + "_" * 100 + "\nKorean/Japanese Detected. Please enter the romaji/english title:\n")
-        # Create new key called titlejp and assign the old title to it
-        releasedata['titlejp'] = releasedata['title']
-        # Replace title with the user input.
-        releasedata['title'] = input_english_title
-
-    en = detectlanguage(releasedata['artist'])
-    if debug:
-        print(f"{releasedata['artist']} < English = {en}")
-    if en == False:
-        input_english_artist = input("\n" + "_" * 100 + "\nKorean/Japanese Detected. Please enter the romaji/english artist name:\n")
-        # Create new key called titlejp and assign the old title to it
-        # Replace title with the user input.
-        releasedata['artist'] = input_english_artist
 
     # Dataset containing all of the information obtained from our FLAC files.
     data = releasedata
@@ -654,7 +660,7 @@ if __name__ == "__main__":
     cover_path = directory + "/" + cfg['local_prefs']['cover_name']
 
     # Create torrent file.
-    torrentfile = createtorrent(authkey, directory, folder_name)
+    torrentfile = createtorrent(authkey, directory, folder_name, releasedata)
 
     # Upload torrent to JPopSuki
     uploadtorrent(torrentfile, cover_path, releasedata)
